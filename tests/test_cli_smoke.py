@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -6,6 +7,8 @@ import polars as pl
 from typer.testing import CliRunner
 
 from quantlint.cli import app
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
 def _write_demo_data(tmp_path: Path) -> tuple[Path, Path]:
@@ -30,16 +33,23 @@ def _write_demo_data(tmp_path: Path) -> tuple[Path, Path]:
     return features_path, labels_path
 
 
+def _normalized_output(text: str) -> str:
+    return " ".join(_ANSI_RE.sub("", text).split())
+
+
 def test_help_runs() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["scan", "--help"], color=False)
+    output = _normalized_output(result.output)
     assert result.exit_code == 0
-    assert "Usage:" in result.output
-    assert "scan" in result.output
-    assert "--features" in result.output
-    assert "--labels" in result.output
-    assert "--format" in result.output
-    assert "--stdout" in result.output
+    assert "Usage:" in output
+    assert "scan" in output
+    assert "Path to features table" in output
+    assert "Path to labels table" in output
+    assert "--format" in output
+    assert "json, md, or both" in output
+    assert "--stdout" in output
+    assert "payload to stdout" in output
 
 
 def test_cli_fail_on_returns_exit_2_and_writes_outputs(tmp_path: Path) -> None:
