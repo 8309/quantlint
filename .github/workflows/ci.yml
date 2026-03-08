@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e ".[dev]"
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Run tests
+        run: pytest -q
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e ".[dev]"
+
+      - name: Generate demo data
+        run: |
+          rm -rf ./_ci_demo ./_ci_out
+          mkdir -p ./_ci_demo
+          python scripts/make_demo_data.py --out-dir ./_ci_demo --format csv
+          ls -la ./_ci_demo
+
+      - name: Run quantlint scan
+        run: |
+          quantlint scan \
+            --features ./_ci_demo/features.csv \
+            --labels ./_ci_demo/labels.csv \
+            --label-time-mode label_ts \
+            --horizon 1m \
+            --out-dir ./_ci_out \
+            --format both
+
+      - name: Verify outputs
+        run: |
+          test -f ./_ci_out/results.json
+          test -f ./_ci_out/report.md
+          ls -la ./_ci_out
+
+      - name: Upload e2e artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantlint-ci-out
+          path: ./_ci_out
+          if-no-files-found: error
