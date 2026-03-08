@@ -32,7 +32,7 @@ def _write_demo_data(tmp_path: Path) -> tuple[Path, Path]:
 
 def test_help_runs() -> None:
     runner = CliRunner()
-    result = runner.invoke(app, ["scan", "--help"])
+    result = runner.invoke(app, ["scan", "--help"], color=False)
     assert result.exit_code == 0
     assert "Usage:" in result.output
     assert "scan" in result.output
